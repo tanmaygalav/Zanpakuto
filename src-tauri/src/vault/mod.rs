@@ -6,3 +6,5 @@ pub mod storage;
 pub mod vault_builder;
 pub mod vault_loader;
 pub mod vault_decryptor;
+pub mod vault_editor;
+

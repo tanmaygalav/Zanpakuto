@@ -3,34 +3,40 @@ use crate::crypto::key_derivation::{
     generate_salt,
 };
 
-use crate::models::vault::VaultData;
-use crate::models::vault_file::VaultFile;
+use crate::models::{
+    vault::VaultData,
+    vault_file::VaultFile,
+};
 
 use crate::vault::encryption::encrypt;
 
-use base64::{engine::general_purpose, Engine as _};
+use base64::{
+    engine::general_purpose,
+    Engine as _,
+};
 
-pub fn create_empty_vault_file(
+pub fn create_vault_file(
     password: &str,
+    vault: &VaultData,
 ) -> Result<String, String> {
 
-    let vault = VaultData {
-        version: 1,
-        entries: vec![],
-    };
-
-    let json = serde_json::to_string(&vault)
+    let json = serde_json::to_string(vault)
         .map_err(|e| e.to_string())?;
 
     let salt = generate_salt();
 
-    let key = derive_key(password, &salt)?;
+    let key = derive_key(
+        password,
+        &salt,
+    )?;
 
-    let (encrypted_data, vault_nonce) =
-        encrypt(
-            &key,
-            json.as_bytes(),
-        )?;
+    let (
+        encrypted_data,
+        vault_nonce,
+    ) = encrypt(
+        &key,
+        json.as_bytes(),
+    )?;
 
     let file = VaultFile {
         version: 1,
@@ -38,7 +44,6 @@ pub fn create_empty_vault_file(
         salt: general_purpose::STANDARD
             .encode(salt),
 
-        // Temporary placeholders
         encrypted_vault_key: String::new(),
 
         vault_key_nonce: String::new(),
@@ -52,4 +57,19 @@ pub fn create_empty_vault_file(
 
     serde_json::to_string_pretty(&file)
         .map_err(|e| e.to_string())
+}
+
+pub fn create_empty_vault_file(
+    password: &str,
+) -> Result<String, String> {
+
+    let vault = VaultData {
+        version: 1,
+        entries: vec![],
+    };
+
+    create_vault_file(
+        password,
+        &vault,
+    )
 }
