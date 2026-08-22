@@ -8,6 +8,7 @@ mod vault;
 use commands::vault_commands::{
     create_vault,
     open_vault,
+    unlock_vault,
 };
 
 
@@ -18,7 +19,8 @@ pub fn run() {
         .invoke_handler(
             tauri::generate_handler![
                 create_vault,
-                open_vault
+                open_vault,
+                unlock_vault,
             ]
         )
         .run(tauri::generate_context!())

@@ -30,6 +30,14 @@ pub fn load_vault() -> Result<String, String> {
     Ok(content)
 }
 
+pub fn read_vault() -> Result<String, String> {
+    let path =
+        get_default_vault_path()?;
+
+    std::fs::read_to_string(path)
+        .map_err(|e| e.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
