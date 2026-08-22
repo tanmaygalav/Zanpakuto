@@ -5020,12 +5020,14 @@ dependencies = [
  "aes-gcm",
  "argon2",
  "base64 0.22.1",
+ "dirs",
  "rand",
  "serde",
  "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-opener",
+ "uuid",
  "zeroize",
 ]
 

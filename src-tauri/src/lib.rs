@@ -5,7 +5,10 @@ mod crypto;
 mod models;
 mod vault;
 
-use commands::vault_commands::create_vault;
+use commands::vault_commands::{
+    create_vault,
+    open_vault,
+};
 
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -14,7 +17,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(
             tauri::generate_handler![
-                create_vault
+                create_vault,
+                open_vault
             ]
         )
         .run(tauri::generate_context!())

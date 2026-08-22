@@ -6,7 +6,9 @@ pub struct VaultFile {
 
     pub salt: String,
 
-    pub nonce: String,
+    pub encrypted_vault_key: String,
+    pub vault_key_nonce: String,
 
+    pub vault_nonce: String,
     pub encrypted_data: String,
 }
