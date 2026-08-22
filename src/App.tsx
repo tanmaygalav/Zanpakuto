@@ -2,19 +2,43 @@ import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 function App() {
-  const [vaultData, setVaultData] = useState("");
-  const [message, setMessage] = useState("");
+  const [password, setPassword] = useState("");
+  const [result, setResult] = useState("");
 
-  async function loadVault() {
+  async function createVault() {
     try {
-      const result = await invoke<string>(
-        "open_vault"
+      const res = await invoke<string>(
+        "create_vault",
+        {
+          password,
+        }
       );
 
-      setVaultData(result);
-      setMessage("Vault loaded!");
+      setResult(
+        "CREATE SUCCESS\n\n" + res
+      );
     } catch (err) {
-      setMessage(String(err));
+      setResult(String(err));
+    }
+  }
+
+  async function unlockVault() {
+    try {
+      const res = await invoke<string>(
+        "unlock_vault",
+        {
+          password,
+        }
+      );
+
+      setResult(
+        "UNLOCK SUCCESS\n\n" + res
+      );
+    } catch (err) {
+      setResult(
+        "UNLOCK FAILED\n\n" +
+          String(err)
+      );
     }
   }
 
@@ -22,35 +46,60 @@ function App() {
     <div
       style={{
         background: "#000",
-        minHeight: "100vh",
         color: "white",
+        minHeight: "100vh",
         padding: "40px",
       }}
     >
-      <h1>Zanpakuto</h1>
+      <h1>Zanpakuto Test</h1>
+
+      <input
+        type="password"
+        placeholder="Password"
+        value={password}
+        onChange={(e) =>
+          setPassword(e.target.value)
+        }
+        style={{
+          width: "300px",
+          padding: "10px",
+        }}
+      />
+
+      <br />
+      <br />
 
       <button
-        onClick={loadVault}
+        onClick={createVault}
         style={{
+          marginRight: "10px",
           padding: "10px 20px",
-          marginBottom: "20px",
         }}
       >
-        Load Vault
+        Create Vault
       </button>
 
-      <p>{message}</p>
+      <button
+        onClick={unlockVault}
+        style={{
+          padding: "10px 20px",
+        }}
+      >
+        Unlock Vault
+      </button>
+
+      <br />
+      <br />
 
       <pre
         style={{
-          whiteSpace: "pre-wrap",
-          wordBreak: "break-word",
           background: "#111",
           padding: "20px",
           borderRadius: "10px",
+          whiteSpace: "pre-wrap",
         }}
       >
-        {vaultData}
+        {result}
       </pre>
     </div>
   );
