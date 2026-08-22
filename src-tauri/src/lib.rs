@@ -3,14 +3,10 @@
 mod commands;
 mod crypto;
 mod models;
+mod vault;
 
 use commands::vault_commands::create_vault;
 
-
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
