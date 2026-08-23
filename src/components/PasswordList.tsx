@@ -1,20 +1,11 @@
 import { useState } from "react";
-
 import PasswordCard from "./PasswordCard";
-
-import { PasswordEntry }
-from "../types/PasswordEntry";
+import { PasswordEntry } from "../types/PasswordEntry";
 
 interface Props {
   entries: PasswordEntry[];
-
-  onEdit: (
-    entry: PasswordEntry
-  ) => void;
-
-  onDelete: (
-    id: string
-  ) => void;
+  onEdit: (entry: PasswordEntry) => void;
+  onDelete: (id: string) => void;
 }
 
 export default function PasswordList({
@@ -22,45 +13,40 @@ export default function PasswordList({
   onEdit,
   onDelete,
 }: Props) {
-  const [search, setSearch] =
-    useState("");
+  const [filterQuery, setFilterQuery] = useState("");
 
-  const filteredEntries =
-    entries.filter((entry) =>
-      entry.title
-        .toLowerCase()
-        .includes(
-          search.toLowerCase()
-        )
-    );
+  const localFiltered = entries.filter((entry) =>
+    entry.title.toLowerCase().includes(filterQuery.toLowerCase()) ||
+    entry.username.toLowerCase().includes(filterQuery.toLowerCase())
+  );
 
   return (
-    <>
-      <input
-        placeholder="Search passwords..."
-        value={search}
-        onChange={(e) =>
-          setSearch(
-            e.target.value
-          )
-        }
-        style={{
-          width: "100%",
-          padding: "10px",
-          marginBottom: "20px",
-        }}
-      />
+    <div>
+      <div className="mb-6">
+        <input
+          placeholder="Filter indexed records..."
+          value={filterQuery}
+          onChange={(e) => setFilterQuery(e.target.value)}
+          className="w-full"
+        />
+      </div>
 
-      {filteredEntries.map(
-        (entry) => (
-          <PasswordCard
-            key={entry.id}
-            entry={entry}
-            onEdit={onEdit}
-            onDelete={onDelete}
-          />
-        )
+      {localFiltered.length === 0 ? (
+        <div className="border border-dashed border-[#111111] p-8 text-center font-editorial italic text-neutral-500">
+          No records found in current edition print queue.
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {localFiltered.map((entry) => (
+            <PasswordCard
+              key={entry.id}
+              entry={entry}
+              onEdit={onEdit}
+              onDelete={onDelete}
+            />
+          ))}
+        </div>
       )}
-    </>
+    </div>
   );
 }
