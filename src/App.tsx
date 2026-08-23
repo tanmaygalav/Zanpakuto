@@ -262,7 +262,7 @@ export default function App() {
                 <label style={{ display: "block", fontFamily: "'JetBrains Mono', monospace", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>
                   Password / Secret *
                 </label>
-                <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+                <div style={{ display: "flex", gap: "8px", marginBottom: "4px" }}>
                   <input
                     type="text"
                     placeholder="Secure password value..."
@@ -277,6 +277,13 @@ export default function App() {
                   >
                     Generate Key
                   </button>
+                </div>
+                {/* Live Strength Indicator */}
+                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "10px", marginBottom: "12px", display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "#737373" }}>Entropy Rating:</span>
+                  <span style={{ fontWeight: "bold", color: evaluatePasswordStrength(password).color }}>
+                    {evaluatePasswordStrength(password).label}
+                  </span>
                 </div>
 
                 <label style={{ display: "block", fontFamily: "'JetBrains Mono', monospace", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>
