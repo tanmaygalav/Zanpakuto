@@ -3,7 +3,7 @@ name: "Publish Release"
 on:
   push:
     tags:
-      - 'v*' # Triggers automatically whenever you push a tag starting with 'v' (e.g. v1.0.0)
+      - 'v*'
 
 jobs:
   publish:
@@ -54,4 +54,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          tagName: v1.0.0
+          releaseName: 'Zanpakuto v1.0.0'
+          releaseBody: 'Automated cross-platform build for Zanpakuto password manager.'
+          releaseDraft: false
+          prerelease: false
           args: ${{ matrix.args }}
