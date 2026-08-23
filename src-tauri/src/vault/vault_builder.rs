@@ -73,3 +73,32 @@ pub fn create_empty_vault_file(
         &vault,
     )
 }
+
+pub fn create_vault_file_with_key(
+    key: &[u8; 32],
+    salt: &[u8],
+    vault: &VaultData,
+) -> Result<String, String> {
+    let json = serde_json::to_string(vault)
+        .map_err(|e| e.to_string())?;
+
+    let (
+        encrypted_data,
+        vault_nonce,
+    ) = encrypt(
+        key,
+        json.as_bytes(),
+    )?;
+
+    let file = VaultFile {
+        version: 1,
+        salt: general_purpose::STANDARD.encode(salt),
+        encrypted_vault_key: String::new(),
+        vault_key_nonce: String::new(),
+        vault_nonce: general_purpose::STANDARD.encode(vault_nonce),
+        encrypted_data: general_purpose::STANDARD.encode(encrypted_data),
+    };
+
+    serde_json::to_string_pretty(&file)
+        .map_err(|e| e.to_string())
+}

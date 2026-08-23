@@ -1,3 +1,5 @@
+use tauri::State;
+use crate::vault::session::VaultSession;
 use crate::vault::vault_builder::create_empty_vault_file;
 use crate::vault::storage::{
     save_vault,
@@ -6,9 +8,10 @@ use crate::vault::storage::{
 use crate::vault::storage::read_vault;
 use crate::vault::vault_loader::parse_vault_file;
 use crate::vault::vault_decryptor::decrypt_vault;
-
+use crate::crypto::key_derivation::derive_key;
 use crate::models::password_entry::PasswordEntry;
 use crate::vault::vault_builder::create_vault_file;
+use crate::vault::vault_builder::create_vault_file_with_key;
 
 use crate::vault::vault_editor::{
     add_entry,
@@ -19,7 +22,10 @@ use crate::vault::vault_editor::{
 use uuid::Uuid;
 use chrono::Utc;
 
-
+use base64::{
+    engine::general_purpose,
+    Engine as _,
+};
 
 #[tauri::command]
 pub fn create_vault(
@@ -44,98 +50,167 @@ pub fn open_vault() -> Result<String, String> {
     load_vault()
 }
 
+// #[tauri::command]
+// pub fn unlock_vault(
+//     password: String,
+// ) -> Result<String, String> {
+
+//     let content =
+//         read_vault()?;
+
+//     let vault_file =
+//         parse_vault_file(
+//             &content
+//         )?;
+
+//     // let vault =
+//     //     decrypt_vault(
+//     //         vault_file,
+//     //         &password
+//     //     )?;
+//     let vault = decrypt_vault(vault_file, &password)?;
+
+//     *state.master_password.lock().unwrap() = Some(password);
+//     *state.decrypted_vault.lock().unwrap() = Some(vault.clone());
+
+//     serde_json::to_string_pretty(
+//         &vault
+//     )
+//     .map_err(|e| e.to_string())
+// }
+
 #[tauri::command]
-pub fn unlock_vault(
+pub async fn unlock_vault(
     password: String,
+    state: State<'_, VaultSession>,
 ) -> Result<String, String> {
+    let content = read_vault()?;
+    let vault_file = parse_vault_file(&content)?;
 
-    let content =
-        read_vault()?;
+    // Explicitly handle base64 decode error type
+    let salt = general_purpose::STANDARD
+        .decode(&vault_file.salt)
+        .map_err(|e: base64::DecodeError| e.to_string())?;
 
-    let vault_file =
-        parse_vault_file(
-            &content
-        )?;
+    let key = derive_key(&password, &salt)?;
 
-    let vault =
-        decrypt_vault(
-            vault_file,
-            &password
-        )?;
+    let vault = decrypt_vault(vault_file, &password)?;
 
-    serde_json::to_string_pretty(
-        &vault
-    )
-    .map_err(|e| e.to_string())
+    // Cache key, salt, and vault data in memory session
+    *state.encryption_key.lock().unwrap() = Some(key);
+    *state.vault_salt.lock().unwrap() = Some(salt);
+    *state.decrypted_vault.lock().unwrap() = Some(vault.clone());
+
+    serde_json::to_string_pretty(&vault).map_err(|e| e.to_string())
 }
 
+// #[tauri::command]
+// pub fn save_entry(
+//     master_password: String,
+
+//     title: String,
+//     username: String,
+//     password_value: String,
+//     url: String,
+//     notes: String,
+// ) -> Result<String, String> {
+
+//     let content =
+//         read_vault()?;
+
+//     let vault_file =
+//         parse_vault_file(
+//             &content
+//         )?;
+
+//     let mut vault =
+//         decrypt_vault(
+//             vault_file,
+//             &master_password
+//         )?;
+
+//     let now =
+//         Utc::now()
+//             .to_rfc3339();
+
+//     let entry = PasswordEntry {
+//         id: Uuid::new_v4().to_string(),
+
+//         title,
+
+//         username,
+
+//         password: password_value,
+
+//         url,
+
+//         notes,
+
+//         created_at: now.clone(),
+
+//         updated_at: now,
+//     };
+
+//     add_entry(
+//         &mut vault,
+//         entry,
+//     );
+
+//     let encrypted_json =
+//         create_vault_file(
+//             &master_password,
+//             &vault,
+//         )?;
+
+//     save_vault(
+//         &encrypted_json
+//     )?;
+
+//     Ok(
+//         "Entry saved".to_string()
+//     )
+// }
 
 #[tauri::command]
-pub fn save_entry(
-    master_password: String,
-
+pub async fn save_entry(
     title: String,
     username: String,
     password_value: String,
     url: String,
     notes: String,
+    state: State<'_, VaultSession>,
 ) -> Result<String, String> {
+    let key_guard = state.encryption_key.lock().unwrap();
+    let key = key_guard.as_ref().ok_or("Vault is locked")?;
 
-    let content =
-        read_vault()?;
+    let salt_guard = state.vault_salt.lock().unwrap();
+    let salt = salt_guard.as_ref().ok_or("Vault is locked")?;
 
-    let vault_file =
-        parse_vault_file(
-            &content
-        )?;
+    let mut vault_guard = state.decrypted_vault.lock().unwrap();
+    let vault = vault_guard.as_mut().ok_or("Vault is locked")?;
 
-    let mut vault =
-        decrypt_vault(
-            vault_file,
-            &master_password
-        )?;
-
-    let now =
-        Utc::now()
-            .to_rfc3339();
-
+    let now = Utc::now().to_rfc3339();
     let entry = PasswordEntry {
         id: Uuid::new_v4().to_string(),
-
         title,
-
         username,
-
         password: password_value,
-
         url,
-
         notes,
-
         created_at: now.clone(),
-
         updated_at: now,
     };
 
-    add_entry(
-        &mut vault,
-        entry,
-    );
+    add_entry(vault, entry);
 
-    let encrypted_json =
-        create_vault_file(
-            &master_password,
-            &vault,
-        )?;
+    // Encrypt instantly using the cached key (NO Argon2id re-derivation!)
+    let encrypted_json = create_vault_file_with_key(key, salt, vault)?;
+    save_vault(&encrypted_json)?;
 
-    save_vault(
-        &encrypted_json
-    )?;
-
-    Ok(
-        "Entry saved".to_string()
-    )
+    Ok("Entry saved".to_string())
 }
+
+
 
 #[tauri::command]
 pub fn update_entry_command(
