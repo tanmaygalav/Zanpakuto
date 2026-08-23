@@ -30,13 +30,7 @@ use base64::{
 use crate::vault::storage::get_default_vault_path;
 use std::fs;
 
-
-
-
-
-
-
-
+use crate::vault::ipc_server::{PENDING_CREDENTIALS, CapturedCredential};
 
 
 
@@ -325,4 +319,13 @@ pub async fn delete_vault_file(state: State<'_, VaultSession>) -> Result<String,
     *state.decrypted_vault.lock().unwrap() = None;
 
     Ok("Vault purged successfully".to_string())
+}
+
+
+#[tauri::command]
+pub fn get_pending_credentials() -> Result<Vec<CapturedCredential>, String> {
+    let mut queue = PENDING_CREDENTIALS.lock().map_err(|e| e.to_string())?;
+    let items = queue.clone();
+    queue.clear();
+    Ok(items)
 }

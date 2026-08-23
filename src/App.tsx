@@ -1,3 +1,5 @@
+import { invoke } from "@tauri-apps/api/core";
+import { useEffect } from "react";
 import { useState } from "react";
 import VaultUnlock from "./components/VaultUnlock";
 import VaultSetup from "./components/VaultSetup";
@@ -30,6 +32,28 @@ export default function App() {
   const [password, setPassword] = useState("");
   const [url, setUrl] = useState("");
   const [notes, setNotes] = useState("");
+
+
+
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const pending: Array<{ title: string; username: string; password: string; url: string }> = await invoke("get_pending_credentials");
+        if (pending && pending.length > 0) {
+          const latest = pending[pending.length - 1];
+          setTitle(latest.title);
+          setUsername(latest.username);
+          setPassword(latest.password);
+          setUrl(latest.url);
+          console.log("Auto-filled credential from browser extension!");
+        }
+      } catch (err) {
+        // Ignore if locked or offline
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   async function unlockVault() {
     try {
