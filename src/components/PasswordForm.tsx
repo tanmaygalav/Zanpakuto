@@ -1,4 +1,3 @@
-import { PasswordEntry } from "../types/PasswordEntry";
 
 interface Props {
   title: string;
