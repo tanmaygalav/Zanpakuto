@@ -1,11 +1,13 @@
 import { useState } from "react";
 import VaultUnlock from "./components/VaultUnlock";
+import VaultSetup from "./components/VaultSetup";
 import PasswordList from "./components/PasswordList";
 import {
   unlockVault as unlockVaultApi,
   saveEntry as saveEntryApi,
   deleteEntry as deleteEntryApi,
   updateEntry as updateEntryApi,
+  deleteVaultFile,
 } from "./services/vaultApi";
 import { PasswordEntry } from "./types/PasswordEntry";
 
@@ -19,6 +21,9 @@ export default function App() {
   const [vaultData, setVaultData] = useState<VaultData | null>(null);
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState("");
+  
+  // Toggle between "unlock existing" or "create new"
+  const [isCreatingNew, setIsCreatingNew] = useState(false);
 
   const [title, setTitle] = useState("");
   const [username, setUsername] = useState("");
@@ -31,7 +36,7 @@ export default function App() {
       const data = await unlockVaultApi(masterPassword);
       setVaultData(data);
     } catch (err) {
-      alert(String(err));
+      alert("Failed to unlock vault. If you haven't created one yet, click 'Initialize New Vault' below.");
     }
   }
 
@@ -45,7 +50,9 @@ export default function App() {
         url,
         notes,
       });
-      await unlockVault();
+      // Re-fetch or reload vault data after save
+      const data = await unlockVaultApi(masterPassword);
+      setVaultData(data);
       clearForm();
     } catch (err) {
       alert(String(err));
@@ -64,7 +71,8 @@ export default function App() {
         created_at: "",
         updated_at: new Date().toISOString(),
       });
-      await unlockVault();
+      const data = await unlockVaultApi(masterPassword);
+      setVaultData(data);
       clearForm();
     } catch (err) {
       alert(String(err));
@@ -75,10 +83,28 @@ export default function App() {
     if (!confirm("Are you sure you want to purge this record?")) return;
     try {
       await deleteEntryApi(masterPassword, id);
-      await unlockVault();
+      const data = await unlockVaultApi(masterPassword);
+      setVaultData(data);
     } catch (err) {
       alert(String(err));
     }
+  }
+
+  async function handleResetVault() {
+    if (!confirm("WARNING: This will completely destroy the vault file on disk. All records will be lost forever. Proceed?")) return;
+    try {
+      await deleteVaultFile();
+      setVaultData(null);
+      setMasterPassword("");
+      alert("Vault file destroyed.");
+    } catch (err) {
+      alert(String(err));
+    }
+  }
+
+  function handleLockVault() {
+    setVaultData(null);
+    setMasterPassword("");
   }
 
   function clearForm() {
@@ -97,6 +123,33 @@ export default function App() {
     setPassword(entry.password);
     setUrl(entry.url);
     setNotes(entry.notes);
+  }
+
+  function generateSecurePassword() {
+    const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,.<>?";
+    const length = 18;
+    const randomValues = new Uint32Array(length);
+    window.crypto.getRandomValues(randomValues);
+    
+    let retVal = "";
+    for (let i = 0; i < length; i++) {
+      retVal += charset[randomValues[i] % charset.length];
+    }
+    setPassword(retVal);
+  }
+
+  function evaluatePasswordStrength(pass: string) {
+    if (!pass) return { label: "Empty", color: "#737373" };
+    let score = 0;
+    if (pass.length >= 12) score++;
+    if (pass.length >= 16) score++;
+    if (/[A-Z]/.test(pass) && /[a-z]/.test(pass)) score++;
+    if (/[0-9]/.test(pass)) score++;
+    if (/[^A-Za-z0-9]/.test(pass)) score++;
+
+    if (score >= 4) return { label: "Cryptographic Grade", color: "#111111" };
+    if (score === 3) return { label: "Moderate", color: "#b45309" };
+    return { label: "Weak / Vulnerable", color: "#CC0000" };
   }
 
   const filteredEntries =
@@ -128,17 +181,49 @@ export default function App() {
         <p style={{ textAlign: "center", fontFamily: "'JetBrains Mono', monospace", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.15em", color: "#737373", margin: 0 }}>
           The Absolute Record of Encrypted Credentials & Secrets
         </p>
+
+        {/* Session Controls when Unlocked */}
+        {vaultData && (
+          <div style={{ display: "flex", gap: "8px", justifyContent: "center", marginTop: "16px" }}>
+            <button onClick={handleLockVault} className="secondary-btn" style={{ fontSize: "10px", padding: "4px 10px" }}>
+              Lock Vault Session
+            </button>
+            <button onClick={handleResetVault} className="secondary-btn" style={{ fontSize: "10px", padding: "4px 10px", borderColor: "#CC0000", color: "#CC0000" }}>
+              Destroy & Reset Vault
+            </button>
+          </div>
+        )}
       </header>
 
       {/* Main Content Area */}
       <main style={{ flex: 1 }}>
         {!vaultData ? (
-          <div style={{ maxWidth: "480px", margin: "40px auto" }}>
-            <VaultUnlock
-              masterPassword={masterPassword}
-              setMasterPassword={setMasterPassword}
-              unlockVault={unlockVault}
-            />
+          <div>
+            {isCreatingNew ? (
+              <div>
+                <VaultSetup onVaultCreated={() => setIsCreatingNew(false)} />
+                <div style={{ textAlign: "center", marginTop: "16px" }}>
+                  <button onClick={() => setIsCreatingNew(false)} className="secondary-btn" style={{ fontSize: "11px" }}>
+                    &larr; Back to Unlock Existing Vault
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div style={{ maxWidth: "480px", margin: "0 auto" }}>
+                  <VaultUnlock
+                    masterPassword={masterPassword}
+                    setMasterPassword={setMasterPassword}
+                    unlockVault={unlockVault}
+                  />
+                </div>
+                <div style={{ textAlign: "center", marginTop: "20px" }}>
+                  <button onClick={() => setIsCreatingNew(true)} className="secondary-btn" style={{ fontSize: "11px" }}>
+                    Need a new vault? Initialize one here &rarr;
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="newsprint-grid">
@@ -177,12 +262,22 @@ export default function App() {
                 <label style={{ display: "block", fontFamily: "'JetBrains Mono', monospace", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>
                   Password / Secret *
                 </label>
-                <input
-                  type="text"
-                  placeholder="Secure password value..."
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
+                <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+                  <input
+                    type="text"
+                    placeholder="Secure password value..."
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    style={{ flex: 1, margin: 0 }}
+                  />
+                  <button
+                    type="button"
+                    onClick={generateSecurePassword}
+                    style={{ padding: "0 12px", fontSize: "10px", whiteSpace: "nowrap", margin: 0 }}
+                  >
+                    Generate Key
+                  </button>
+                </div>
 
                 <label style={{ display: "block", fontFamily: "'JetBrains Mono', monospace", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>
                   Target URL
@@ -213,7 +308,7 @@ export default function App() {
             </div>
 
             {/* Right Column: Database Feed */}
-            <div className="newsprint-box">
+            <div className="newsprint-box" style={{ position: "static" }}>
               <div style={{ borderBottom: "1px solid #111111", paddingBottom: "12px", marginBottom: "20px", display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "12px" }}>
                 <h2 className="font-headline" style={{ fontSize: "1.5rem", fontWeight: "bold", margin: 0 }}>
                   Indexed Records ({filteredEntries.length})

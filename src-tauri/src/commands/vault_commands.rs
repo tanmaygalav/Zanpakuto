@@ -27,6 +27,23 @@ use base64::{
     Engine as _,
 };
 
+use crate::vault::storage::get_default_vault_path;
+use std::fs;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #[tauri::command]
 pub fn create_vault(
     password: String,
@@ -292,4 +309,20 @@ pub fn delete_entry_command(
         "Entry deleted"
             .to_string()
     )
+}
+
+#[tauri::command]
+pub async fn delete_vault_file(state: State<'_, VaultSession>) -> Result<String, String> {
+    let path = get_default_vault_path()?;
+    
+    if path.exists() {
+        fs::remove_file(path).map_err(|e| e.to_string())?;
+    }
+
+    // Clear session state
+    *state.encryption_key.lock().unwrap() = None;
+    *state.vault_salt.lock().unwrap() = None;
+    *state.decrypted_vault.lock().unwrap() = None;
+
+    Ok("Vault purged successfully".to_string())
 }

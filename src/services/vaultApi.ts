@@ -53,3 +53,12 @@ export async function refreshVault(
 ) {
   return unlockVault(password);
 }
+
+
+export async function createVault(password: string): Promise<string> {
+  return await invoke("create_vault", { password });
+}
+
+export async function deleteVaultFile(): Promise<string> {
+  return await invoke("delete_vault_file");
+}

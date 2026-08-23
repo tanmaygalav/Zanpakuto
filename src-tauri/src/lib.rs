@@ -49,6 +49,7 @@ use commands::vault_commands::{
     save_entry,
     update_entry_command,
     delete_entry_command,
+    delete_vault_file,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -68,6 +69,7 @@ pub fn run() {
                 save_entry,
                 update_entry_command,
                 delete_entry_command,
+                delete_vault_file,
             ]
         )
         .run(tauri::generate_context!())
